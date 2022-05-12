@@ -60,7 +60,6 @@ runs:
           ref: ${{ inputs.target_branch }}
           submodules: true
           token: ${{ inputs.pat_token }}
-          path: ${{ github.repository }}
       
       - name: Update submodule
         shell: bash
