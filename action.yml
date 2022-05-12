@@ -1,0 +1,112 @@
+name: 'Update self as submodule'
+description: 'Update itself as a submodule, and create PR on parent repo'
+author: 'RevolveNTNU'
+
+inputs:
+
+  self_dot_git: 
+    description: 'Name of .git-file for the current repo'
+    required: true
+
+  name: 
+    description: 'Name to use in text, e.g. PR title ect.'
+    required: false
+    default: 'Submodule'
+
+  pat_token:
+    description: 'PAT token valid on parent repo'
+    required: true
+
+  pr_branch_name:
+    description: 'Name of branch to create on parent. Run ID will be appended'
+    required: false
+    default: 'dependencies/submodule-update'
+
+  target_branch:
+    description: 'Target branch on parent'
+    required: true
+  
+  checkout_branch:
+    description: 'Name of branch on self to checkout and pull'
+    required: false
+    default: 'master'
+
+  parent_repository:
+    description: 'Parent repository, WITHOUT owner prefix'
+    required: true
+
+  owner:
+    description: 'Owner of the parent repo'
+    required: true
+
+  label:
+    description: 'Label to use on PR'
+    required: false
+    default: 'dependencies 🛎️'
+  
+runs:
+  using: 'composite'
+  steps:
+      - name: "Set environmental variables"
+        shell: bash
+        run: |
+          echo "ID=${GITHUB_RUN_ID}" >> $GITHUB_ENV
+          echo "BRANCH=${{ inputs.pr_branch_name }}-${GITHUB_RUN_ID}" >> $GITHUB_ENV
+
+      - name: Checkout Code
+        uses: actions/checkout@v2
+        with:
+          repository: "${{ inputs.owner }}/${{ inputs.parent_repository }}"
+          ref: ${{ inputs.target_branch }}
+          submodules: true
+          token: ${{ inputs.pat_token }}
+          path: ${{ github.repository }}
+      
+      - name: Update submodule
+        shell: bash
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          cd $(git config --file .gitmodules --get-regexp url | grep ${{ inputs.self_dot_git }} | sed -e "s/^submodule.//" -e "s/\.url.*//")
+          git checkout ${{ inputs.checkout_branch }}
+          git pull
+          cd -
+ 
+      - name: Commit and push
+        shell: bash
+        run: |
+          git checkout -b ${{ env.BRANCH }}
+          git commit -am "Update ${{ inputs.name }}"
+          git push --set-upstream origin ${{ env.BRANCH }}
+      
+      - name: Create pull request against target branch
+        uses: actions/github-script@v5
+        with:
+          github-token: ${{ inputs.pat_token }}
+          script: |
+            await github.rest.pulls.create({
+              owner: '${{ inputs.owner }}',
+              repo: '${{ inputs.parent_repository }}',
+              head: '${{ env.BRANCH }}',
+              base: '${{ inputs.target_branch }}',
+              title: `[Auto-generated] ${{ inputs.name }} updates ${{ env.ID }}`,
+              body: `Update the ${{ inputs.name }}-submodule to latest master`,
+            });
+
+      - name: Add labels
+        uses: actions/github-script@v5
+        with:
+          github-token: ${{ inputs.pat_token }}
+          script: |
+            const res = await github.rest.issues.listForRepo({
+              owner: '${{ inputs.owner }}',
+              repo: '${{ inputs.parent_repository }}',
+            });
+            const pr = res.data.filter(i => i.title.includes(process.env.GITHUB_RUN_ID));
+            const prNumber = pr[0].number;  
+            await github.rest.issues.addLabels({
+              issue_number: prNumber,
+              owner: '${{ inputs.owner }}',
+              repo: '${{ inputs.parent_repository }}',
+              labels: ['${{ inputs.label }}']
+            });
