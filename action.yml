@@ -75,7 +75,8 @@ runs:
         shell: bash
         run: |
           git checkout -b ${{ env.BRANCH }}
-          git commit -am "Update ${{ inputs.name }}"
+          git add .
+          git commit -m "Update ${{ inputs.name }}"
           git push --set-upstream origin ${{ env.BRANCH }}
       
       - name: Create pull request against target branch
