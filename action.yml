@@ -64,6 +64,7 @@ runs:
       - name: Update submodule
         shell: bash
         run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           git config user.name github-actions
           git config user.email github-actions@github.com
           cd $(git config --file .gitmodules --get-regexp url | grep ${{ inputs.self_dot_git }} | sed -e "s/^submodule.//" -e "s/\.url.*//")
