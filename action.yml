@@ -46,6 +46,7 @@ inputs:
   
 runs:
   using: 'composite'
+  runs-on: ubuntu-latest
   steps:
       - name: "Set environmental variables"
         shell: bash
