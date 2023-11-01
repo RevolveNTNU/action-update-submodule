@@ -45,3 +45,11 @@ jobs:
 This file should be placed in the `my_test_submodule`-repo.
 
 This would make a pull request on `dev` in the repo `RevolveNTNU/parent`, updating the `my_test_submodule`-submodule to the latest `main`.
+
+The permissions required on the GitHub fine-grained token are as follows:
+
+- Metadata: Read
+- Contents: Read + Write
+- Pull requests: Read + Write
+
+The token can be scoped to only the parent repository.
