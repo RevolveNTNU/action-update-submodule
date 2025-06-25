@@ -81,33 +81,43 @@ runs:
           git push --set-upstream origin ${{ env.BRANCH }}
       
       - name: Create pull request against target branch
+        id: create_pr
         uses: actions/github-script@v5
         with:
           github-token: ${{ inputs.pat_token }}
           script: |
-            await github.rest.pulls.create({
-              owner: '${{ inputs.owner }}',
-              repo: '${{ inputs.parent_repository }}',
-              head: '${{ env.BRANCH }}',
-              base: '${{ inputs.target_branch }}',
-              title: `[Auto-generated] ${{ inputs.name }} updates ${{ env.ID }}`,
-              body: `Update the ${{ inputs.name }}-submodule to latest master`,
-            });
+            try {
+              const pr = await github.rest.pulls.create({
+                owner: '${{ inputs.owner }}',
+                repo: '${{ inputs.parent_repository }}',
+                head: '${{ env.BRANCH }}',
+                base: '${{ inputs.target_branch }}',
+                title: `[Auto-generated] ${{ inputs.name }} updates ${{ env.ID }}`,
+                body: `Update the ${{ inputs.name }}-submodule to latest master`,
+              });
+              return pr.data.number;
+            } catch (error) {
+              console.error('Error creating pull request:', error);
+              return null;
+            }
 
       - name: Add labels
         uses: actions/github-script@v5
         with:
           github-token: ${{ inputs.pat_token }}
           script: |
-            const res = await github.rest.issues.listForRepo({
-              owner: '${{ inputs.owner }}',
-              repo: '${{ inputs.parent_repository }}',
-            });
-            const pr = res.data.filter(i => i.title.includes(process.env.GITHUB_RUN_ID));
-            const prNumber = pr[0].number;  
-            await github.rest.issues.addLabels({
-              issue_number: prNumber,
-              owner: '${{ inputs.owner }}',
-              repo: '${{ inputs.parent_repository }}',
-              labels: ['${{ inputs.label }}']
-            });
+            const prNumber = ${{ steps.create_pr.outputs.result }};
+            if (prNumber) {
+              try {
+                await github.rest.issues.addLabels({
+                  issue_number: prNumber,
+                  owner: '${{ inputs.owner }}',
+                  repo: '${{ inputs.parent_repository }}',
+                  labels: ['${{ inputs.label }}']
+                });
+              } catch (error) {
+                console.error('Error adding label to PR', error);
+              }
+            } else {
+              console.error('No PR number returned, skipping label addition');
+            }
