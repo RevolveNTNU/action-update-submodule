@@ -23,7 +23,7 @@ jobs:
  
     steps:
       - name: 'Update submodule on parent'
-        uses: 'RevolveNTNU/action-update-submodule@v1'
+        uses: 'RevolveNTNU/action-update-submodule@v3'
         with:
           self_dot_git: 'my_test_submodule.git'
 
